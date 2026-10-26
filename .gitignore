@@ -1,0 +1,9 @@
+# Meson build directories
+builddir/
+build/
+lib/builddir/
+lib/build/
+
+# Hermit
+/.hermit/
+/bin/hermit.hcl.lock

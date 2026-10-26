@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-only
+# Kbuild fragment for libpsu — included by the parent kernel module's Makefile.
+# Compiles libpsu sources into the parent module's object list.
+
+obj-y := src/pmbus_conversion.o

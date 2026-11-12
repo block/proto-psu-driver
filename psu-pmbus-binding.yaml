@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/block,psu-pmbus.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Block PSU PMBus Power Supply Driver
+
+maintainers:
+  - Block Inc <mining@proto.xyz>
+
+description: |
+  PMBus-compatible power supply driver supporting multiple PSU models.
+  Provides hardware monitoring through Linux hwmon subsystem and control
+  interfaces through sysfs.
+
+  The driver operates as a platform device that probes multiple I2C addresses
+  and dynamically creates child PSU devices for each detected PSU. This enables
+  hot-plug support with automatic detection of PSU connection and disconnection.
+
+  Supported models:
+  - Chicony S24
+  - Boco BS402A17
+  - Boco BS502A17
+
+properties:
+  compatible:
+    const: block,psu-pmbus
+
+  psu-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      PSU ID (1, 2, 3, ...). Matches bay/slot numbering.
+      Used by userspace to match hwmon devices to specific PSU slots.
+
+  psu-en-gpio:
+    maxItems: 1
+    description: |
+      GPIO used to enable/disable the PSU output.
+
+  initial-voltage-mv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Initial output voltage in millivolts to set during PSU initialization. Depends on the PSU model.
+      Typical range: 10000-20000 mV (10V-20V)
+    minimum: 10000
+    maximum: 20000
+
+  update-interval-ms:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Full sensor update interval in milliseconds.
+      How often the driver reads all sensor values from the PSU.
+    minimum: 100
+    maximum: 10000
+    default: 5000
+
+  status-check-interval-ms:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Fast status check interval in milliseconds.
+      How often the driver reads just the STATUS_WORD register for quick fault detection.
+      Should be shorter than update-interval-ms for responsive fault monitoring.
+    minimum: 50
+    maximum: 5000
+    default: 250
+
+  i2c-bus:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      Phandle to the I2C adapter/bus where PSUs are connected.
+
+  probe-addresses:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description: |
+      Array of I2C addresses to probe for PSU presence. The driver will probe
+      each address by reading the PMBUS_MFR_FWUPLOAD_MODE_ADDR register (0xD6).
+      Valid PSUs will be automatically instantiated as child devices.
+    maxItems: 8
+
+  reconnect-poll-interval-ms:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Reconnection poll interval in milliseconds.
+      How often the driver polls for PSU reconnection after disconnection.
+    minimum: 1000
+    maximum: 60000
+    default: 5000
+
+  disconnect-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Consecutive I2C failure threshold for disconnection detection.
+      Number of consecutive I2C read failures before the driver considers
+      the PSU disconnected and starts polling for reconnection.
+    minimum: 1
+    maximum: 20
+    default: 5
+
+required:
+  - compatible
+  - psu-id
+  - i2c-bus
+  - probe-addresses
+  - initial-voltage-mv
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    /* PSU platform driver with automatic detection and hot-plug support */
+    psu_controller: psu-pmbus {
+        compatible = "block,psu-pmbus";
+        psu-id = <1>;
+        i2c-bus = <&i2c1>;
+        probe-addresses = /bits/ 8 <0x58 0x59 0x5A>;
+        initial-voltage-mv = <15000>;
+        update-interval-ms = <5000>;
+        status-check-interval-ms = <250>;
+        reconnect-poll-interval-ms = <5000>;
+        disconnect-threshold = <5>;
+        psu-en-gpio = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+    };
+
+  - |
+    /* Minimal configuration with defaults */
+    psu-pmbus {
+        compatible = "block,psu-pmbus";
+        psu-id = <2>;
+        i2c-bus = <&i2c2>;
+        probe-addresses = /bits/ 8 <0x58>;
+        initial-voltage-mv = <15000>;
+    };

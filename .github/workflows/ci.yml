@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cashapp/activate-hermit@v1
+
+      - name: Setup
+        run: meson setup lib/builddir lib
+
+      - name: Build
+        run: meson compile -C lib/builddir
+
+      - name: Test
+        run: meson test -C lib/builddir --print-errorlogs

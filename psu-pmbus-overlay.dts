@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-only
+/*
+ * Device Tree Overlay for PSU PMBus Platform Driver
+ *
+ * Raspberry Pi 4B / 5 with PSU on I2C1, address 0x58
+ * PSU enable on BCM GPIO 17 (pin 11), active-low
+ *
+ * Install: sudo cp psu-pmbus.dtbo /boot/overlays/
+ * Enable:  Add "dtoverlay=psu-pmbus" to /boot/firmware/config.txt
+ *
+ * Compile: dtc -@ -I dts -O dtb -o psu-pmbus.dtbo psu-pmbus-overlay.dts
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2712", "brcm,bcm2711";
+
+	/* Fragment 0: Enable I2C1 at 100kHz */
+	fragment@0 {
+		target = <&i2c1>;
+		__overlay__ {
+			status = "okay";
+			clock-frequency = <100000>;
+		};
+	};
+
+	/* Fragment 1: Add PSU PMBus platform device at root
+	 *
+	 * This is a platform driver (not an I2C client), so the node lives
+	 * at the root rather than inside the I2C bus node. The driver uses
+	 * the i2c-bus phandle to find and probe the I2C adapter itself.
+	 */
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			psu-pmbus {
+				compatible = "block,psu-pmbus";
+				psu-id = <1>;
+				i2c-bus = <&i2c1>;
+				probe-addresses = /bits/ 8 <0x10 0x8>;
+				initial-voltage-mv = <15000>;
+
+				/* PSU enable: BCM GPIO 17 (header pin 11), active-low
+				 * Raw 1 = GPIO_ACTIVE_LOW (no kernel headers in standalone dtc)
+				 * RPi5: must use &rp1_gpio (RP1 southbridge controls 40-pin header)
+				 */
+				psu-en-gpio = <&rp1_gpio 17 1>;
+
+				/* Optional timing parameters (showing defaults) */
+				update-interval-ms = <5000>;
+				status-check-interval-ms = <250>;
+				reconnect-poll-interval-ms = <5000>; 
+				disconnect-threshold = <5>;
+			};
+		};
+	};
+};
